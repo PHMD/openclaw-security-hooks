@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw Security Hooks - Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --bg: #080b10;
+    --surface: #0f1318;
+    --surface2: #141920;
+    --border: rgba(255,255,255,0.06);
+    --border-bright: rgba(255,255,255,0.12);
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --primary: #00ff88;
+    --primary-dim: rgba(0,255,136,0.08);
+    --secondary: #6366f1;
+    --secondary-dim: rgba(99,102,241,0.08);
+    --tertiary: #fbbf24;
+    --tertiary-dim: rgba(251,191,36,0.08);
+    --danger: #ff4757;
+    --danger-dim: rgba(255,71,87,0.08);
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34,211,238,0.08);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8fafb;
+      --surface: #ffffff;
+      --surface2: #f1f5f9;
+      --border: rgba(0,0,0,0.06);
+      --border-bright: rgba(0,0,0,0.12);
+      --text: #0f172a;
+      --text-dim: #64748b;
+      --primary: #059669;
+      --primary-dim: rgba(5,150,105,0.06);
+      --secondary: #4f46e5;
+      --secondary-dim: rgba(79,70,229,0.06);
+      --tertiary: #d97706;
+      --tertiary-dim: rgba(217,119,6,0.06);
+      --danger: #dc2626;
+      --danger-dim: rgba(220,38,38,0.06);
+      --cyan: #0891b2;
+      --cyan-dim: rgba(8,145,178,0.06);
+    }
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background-color: var(--bg);
+    background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: var(--font-body);
+    padding: 2.5rem;
+    min-height: 100vh;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .animate { animation: fadeUp 0.4s ease-out both; animation-delay: calc(var(--i,0) * 0.06s); }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.01ms !important; } }
+
+  h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -1px; margin-bottom: 4px; }
+  h1 span { color: var(--primary); }
+  .subtitle { color: var(--text-dim); font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 2rem; letter-spacing: 1px; }
+
+  h2 { font-size: 1.1rem; font-weight: 600; margin: 2.5rem 0 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+  h2::before { content:''; width:3px; height:1.1em; background:var(--primary); border-radius:2px; }
+
+  .description { font-size: 0.88rem; line-height: 1.7; color: var(--text-dim); margin-bottom: 1.5rem; max-width: 750px; }
+  .description code { font-family: var(--font-mono); font-size: 0.78rem; background: var(--primary-dim); color: var(--primary); padding: 1px 5px; border-radius: 3px; }
+
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem 1.5rem;
+    overflow: auto;
+    margin-bottom: 1.5rem;
+  }
+  .mermaid-wrap .mermaid { display: flex; justify-content: center; transition: transform 0.2s ease; transform-origin: top center; }
+  .zoom-controls { position:absolute; top:8px; right:8px; display:flex; gap:2px; z-index:10; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:2px; }
+  .zoom-controls button { width:28px; height:28px; border:none; background:transparent; color:var(--text-dim); font-family:var(--font-mono); font-size:14px; cursor:pointer; border-radius:4px; display:flex; align-items:center; justify-content:center; }
+  .zoom-controls button:hover { background:var(--border); color:var(--text); }
+  .mermaid-wrap.is-zoomed { cursor:grab; }
+  .mermaid-wrap.is-panning { cursor:grabbing; user-select:none; }
+  .mermaid .nodeLabel { font-family: var(--font-body) !important; font-size: 14px !important; }
+  .mermaid .edgeLabel { font-family: var(--font-mono) !important; font-size: 11px !important; }
+
+  .legend { display:flex; gap:20px; flex-wrap:wrap; margin: 0.5rem 0 1.5rem; }
+  .legend-item { display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:0.7rem; color:var(--text-dim); }
+  .legend-swatch { width:12px; height:12px; border-radius:3px; }
+
+  .callout { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--primary); border-radius:0 10px 10px 0; padding:1rem 1.25rem; font-size:0.82rem; line-height:1.6; color:var(--text-dim); margin:1.5rem 0; }
+  .callout strong { color:var(--text); }
+  .callout code { font-family:var(--font-mono); font-size:0.72rem; background:var(--primary-dim); color:var(--primary); padding:1px 5px; border-radius:3px; }
+
+  .nav-link { display:inline-block; font-family:var(--font-mono); font-size:0.75rem; color:var(--primary); text-decoration:none; margin-top:2rem; padding:0.4rem 0.8rem; border:1px solid var(--primary); border-radius:6px; opacity:0.7; transition:opacity 0.2s; }
+  .nav-link:hover { opacity:1; }
+
+  @media (max-width:768px) { body { padding:1rem; } h1 { font-size:1.5rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1 class="animate" style="--i:0">OpenClaw <span>Security Architecture</span></h1>
+  <p class="subtitle animate" style="--i:1">DETERMINISTIC ENFORCEMENT FLOW</p>
+
+  <p class="description animate" style="--i:2">
+    The hook system intercepts every tool call at the gateway level. <code>Before hooks</code> validate parameters
+    before execution. <code>After hooks</code> sanitize responses before returning to the agent. All enforcement
+    runs in code, not in system prompts.
+  </p>
+
+  <h2 class="animate" style="--i:3">Tool Call Flow</h2>
+  <div class="mermaid-wrap animate" style="--i:4">
+    <div class="zoom-controls">
+      <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+      <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+      <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+    </div>
+    <pre class="mermaid">
+      graph LR
+        A["Agent (LLM)"] --> B["Tool Call"]
+        B --> C{"Before Hooks"}
+        C -->|"Pass"| D["Gateway"]
+        C -->|"Reject"| E["Error Response"]
+        D --> F["External API"]
+        F --> G{"After Hooks"}
+        G -->|"Clean"| H["Agent Response"]
+        G -->|"Sanitized"| H
+        E --> A
+
+        classDef agent fill:#0f1318,stroke:#6366f1,stroke-width:2px,color:#e2e8f0
+        classDef hook fill:#0a1a0f,stroke:#00ff88,stroke-width:2px,color:#00ff88
+        classDef gateway fill:#0f1318,stroke:#64748b,stroke-width:1px,color:#e2e8f0
+        classDef danger fill:#1a0a0a,stroke:#ff4757,stroke-width:2px,color:#ff4757
+
+        class A,H agent
+        class C,G hook
+        class B,D,F gateway
+        class E danger
+    </pre>
+  </div>
+  <div class="legend animate" style="--i:5">
+    <div class="legend-item"><div class="legend-swatch" style="background:#6366f1"></div> Agent</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#00ff88"></div> Enforcement hooks</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#64748b"></div> Gateway / API</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ff4757"></div> Rejection path</div>
+  </div>
+
+  <h2 class="animate" style="--i:6">Attack Defense Flow</h2>
+  <p class="description animate" style="--i:7">
+    When external content arrives (via <code>web_fetch</code>, email, or any tool response), the sanitizer
+    runs a 10-layer detection pipeline before the agent ever sees the content.
+  </p>
+  <div class="mermaid-wrap animate" style="--i:8">
+    <div class="zoom-controls">
+      <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+      <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+      <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+    </div>
+    <pre class="mermaid">
+      graph TD
+        A["External Content"] --> B["Layer 1: System Override Detection"]
+        B --> C["Layer 2: Roleplay Injection"]
+        C --> D["Layer 3: Instruction Injection"]
+        D --> E["Layer 4: Data Exfiltration Patterns"]
+        E --> F["Layer 5: Base64 Decode Chain"]
+        F --> G["Layer 6: URL Decode + Re-check"]
+        G --> H["Layer 7: Hex Decode"]
+        H --> I["Layer 8: Unicode Normalization"]
+        I --> J["Layer 8b: Post-Normalize Re-check"]
+        J --> K["Layer 9: Context Manipulation"]
+        K --> L["Layer 10: Nested Patterns"]
+        L --> M{"Clean?"}
+        M -->|"Yes"| N["Pass to Agent"]
+        M -->|"Threats Found"| O["Strip + Log"]
+        O --> N
+
+        classDef layer fill:#0f1318,stroke:#22d3ee,stroke-width:1px,color:#e2e8f0
+        classDef check fill:#0a1a0f,stroke:#00ff88,stroke-width:2px,color:#00ff88
+        classDef danger fill:#1a0a0a,stroke:#ff4757,stroke-width:1px,color:#ff4757
+        classDef safe fill:#0a1a0f,stroke:#00ff88,stroke-width:2px,color:#00ff88
+
+        class A layer
+        class B,C,D,E,F,G,H,I,J,K,L layer
+        class M check
+        class O danger
+        class N safe
+    </pre>
+  </div>
+
+  <h2 class="animate" style="--i:9">Slack Output Enforcement</h2>
+  <div class="mermaid-wrap animate" style="--i:10">
+    <div class="zoom-controls">
+      <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+      <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+      <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+    </div>
+    <pre class="mermaid">
+      graph TD
+        A["Agent sends message"] --> B{"Before Hook: Block Kit Enforcer"}
+        B -->|"Has rich_text blocks"| C{"Em dash check"}
+        B -->|"No rich_text"| R["REJECT: non-compliant"]
+        C -->|"Clean"| D{"Markdown check"}
+        C -->|"Em dashes found"| R
+        D -->|"No bare markdown"| E["Send to Slack API"]
+        D -->|"Bare **bold** or links"| R
+        R --> F["Error: reformat and retry"]
+        F --> A
+
+        classDef agent fill:#0f1318,stroke:#6366f1,stroke-width:2px,color:#e2e8f0
+        classDef check fill:#0a1a0f,stroke:#00ff88,stroke-width:2px,color:#00ff88
+        classDef danger fill:#1a0a0a,stroke:#ff4757,stroke-width:1px,color:#ff4757
+        classDef pass fill:#0f1318,stroke:#22d3ee,stroke-width:1px,color:#e2e8f0
+
+        class A agent
+        class B,C,D check
+        class R,F danger
+        class E pass
+    </pre>
+  </div>
+
+  <div class="callout animate" style="--i:11">
+    <strong>Key insight:</strong> System prompts say "always use Block Kit." But the agent can ignore that instruction.
+    The before hook makes it impossible - non-compliant payloads are rejected before reaching the Slack API.
+    The agent is forced to retry with correct formatting. Enforcement through architecture, not persuasion.
+  </div>
+
+  <a class="nav-link animate" style="--i:12" href="security-report.html">&larr; Back to Test Report</a>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'handDrawn',
+    themeVariables: {
+      primaryColor: isDark ? '#141920' : '#f1f5f9',
+      primaryBorderColor: isDark ? '#22d3ee' : '#0891b2',
+      primaryTextColor: isDark ? '#e2e8f0' : '#0f172a',
+      secondaryColor: isDark ? '#0a1a0f' : '#ecfdf5',
+      secondaryBorderColor: isDark ? '#00ff88' : '#059669',
+      tertiaryColor: isDark ? '#1a0a0a' : '#fef2f2',
+      tertiaryBorderColor: isDark ? '#ff4757' : '#dc2626',
+      lineColor: isDark ? '#64748b' : '#94a3b8',
+      fontSize: '14px',
+      fontFamily: "'Space Grotesk', system-ui, sans-serif",
+    }
+  });
+</script>
+<script>
+  function zoomDiagram(btn, factor) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    var current = parseFloat(target.dataset.zoom || '1');
+    var next = Math.min(Math.max(current * factor, 0.3), 5);
+    target.dataset.zoom = next;
+    target.style.transform = 'scale(' + next + ')';
+    wrap.classList.toggle('is-zoomed', next > 1);
+  }
+  function resetZoom(btn) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    target.dataset.zoom = '1';
+    target.style.transform = 'scale(1)';
+    wrap.classList.remove('is-zoomed');
+  }
+  document.querySelectorAll('.mermaid-wrap').forEach(function(wrap) {
+    wrap.addEventListener('wheel', function(e) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      var target = wrap.querySelector('.mermaid');
+      var current = parseFloat(target.dataset.zoom || '1');
+      var next = Math.min(Math.max(current * (e.deltaY < 0 ? 1.1 : 0.9), 0.3), 5);
+      target.dataset.zoom = next;
+      target.style.transform = 'scale(' + next + ')';
+      wrap.classList.toggle('is-zoomed', next > 1);
+    }, { passive: false });
+    var sx, sy, sl, st;
+    wrap.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.zoom-controls')) return;
+      if (parseFloat(wrap.querySelector('.mermaid').dataset.zoom || '1') <= 1) return;
+      wrap.classList.add('is-panning'); sx=e.clientX; sy=e.clientY; sl=wrap.scrollLeft; st=wrap.scrollTop;
+    });
+    window.addEventListener('mousemove', function(e) {
+      if (!wrap.classList.contains('is-panning')) return;
+      wrap.scrollLeft = sl - (e.clientX - sx); wrap.scrollTop = st - (e.clientY - sy);
+    });
+    window.addEventListener('mouseup', function() { wrap.classList.remove('is-panning'); });
+  });
+</script>
+</body>
+</html>
