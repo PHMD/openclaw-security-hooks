@@ -4,207 +4,355 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OpenClaw Security Hooks - Test Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --font-body: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --bg: #080b10;
+    --bg-gradient: radial-gradient(ellipse at 20% 0%, rgba(0, 255, 136, 0.04) 0%, transparent 50%),
+                   radial-gradient(ellipse at 80% 100%, rgba(99, 102, 241, 0.03) 0%, transparent 50%),
+                   var(--bg);
+    --surface: #0f1318;
+    --surface2: #141920;
+    --surface-elevated: #181e27;
+    --border: rgba(255, 255, 255, 0.06);
+    --border-bright: rgba(255, 255, 255, 0.12);
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --accent: #00ff88;
+    --accent-dim: rgba(0, 255, 136, 0.08);
+    --accent2: #6366f1;
+    --accent2-dim: rgba(99, 102, 241, 0.08);
+    --green: #00ff88;
+    --green-dim: rgba(0, 255, 136, 0.08);
+    --red: #ff4757;
+    --red-dim: rgba(255, 71, 87, 0.08);
+    --amber: #fbbf24;
+    --amber-dim: rgba(251, 191, 36, 0.08);
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34, 211, 238, 0.08);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8fafb;
+      --bg-gradient: radial-gradient(ellipse at 20% 0%, rgba(0, 180, 100, 0.05) 0%, transparent 50%),
+                     radial-gradient(ellipse at 80% 100%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
+                     var(--bg);
+      --surface: #ffffff;
+      --surface2: #f1f5f9;
+      --surface-elevated: #ffffff;
+      --border: rgba(0, 0, 0, 0.06);
+      --border-bright: rgba(0, 0, 0, 0.12);
+      --text: #0f172a;
+      --text-dim: #64748b;
+      --accent: #059669;
+      --accent-dim: rgba(5, 150, 105, 0.08);
+      --accent2: #4f46e5;
+      --accent2-dim: rgba(79, 70, 229, 0.08);
+      --green: #059669;
+      --green-dim: rgba(5, 150, 105, 0.08);
+      --red: #dc2626;
+      --red-dim: rgba(220, 38, 38, 0.08);
+    }
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; background: #0a0a0a; color: #e0e0e0; padding: 2rem; line-height: 1.6; }
-  .container { max-width: 1000px; margin: 0 auto; }
-  
-  h1 { font-size: 1.8rem; color: #00ff88; margin-bottom: 0.3rem; letter-spacing: -0.5px; }
-  .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
-  .date { color: #444; font-size: 0.8rem; }
-  
-  .hero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
-  .stat { background: #111; border: 1px solid #222; border-radius: 8px; padding: 1.2rem; text-align: center; }
-  .stat-value { font-size: 2.2rem; font-weight: bold; color: #00ff88; }
-  .stat-value.warning { color: #ffaa00; }
-  .stat-value.danger { color: #ff4444; }
-  .stat-label { font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-top: 0.3rem; }
-  
-  h2 { font-size: 1.2rem; color: #00ff88; margin: 2rem 0 1rem; border-bottom: 1px solid #222; padding-bottom: 0.5rem; }
-  
-  .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-  .category-card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 1rem; position: relative; overflow: hidden; }
-  .category-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #00ff88; }
-  .category-name { font-size: 0.9rem; font-weight: bold; color: #ccc; margin-bottom: 0.5rem; text-transform: capitalize; }
-  .category-bar { background: #1a1a1a; border-radius: 4px; height: 8px; margin: 0.5rem 0; overflow: hidden; }
-  .category-fill { height: 100%; background: linear-gradient(90deg, #00ff88, #00cc66); border-radius: 4px; transition: width 0.5s; }
-  .category-stats { display: flex; justify-content: space-between; font-size: 0.75rem; color: #666; }
-  
-  .architecture { background: #111; border: 1px solid #222; border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0; }
-  .arch-flow { display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.85rem; padding: 1rem 0; }
-  .arch-box { background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 0.5rem 1rem; color: #ccc; }
-  .arch-box.hook { border-color: #00ff88; color: #00ff88; background: #0a1a0f; }
-  .arch-arrow { color: #444; font-size: 1.2rem; }
-  
-  .attack-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-  .attack-table th { text-align: left; padding: 0.7rem; border-bottom: 2px solid #222; color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
-  .attack-table td { padding: 0.7rem; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; }
-  .attack-table tr:hover { background: #111; }
-  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.7rem; font-weight: bold; }
-  .badge.pass { background: #0a2a0f; color: #00ff88; border: 1px solid #00ff8844; }
-  .badge.fail { background: #2a0a0a; color: #ff4444; border: 1px solid #ff444444; }
-  
-  .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #1a1a1a; color: #333; font-size: 0.75rem; text-align: center; }
-  
-  .test-suites { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
-  .suite { background: #111; border: 1px solid #222; border-radius: 8px; padding: 1rem; text-align: center; }
-  .suite-name { font-size: 0.8rem; color: #888; margin-bottom: 0.3rem; }
-  .suite-result { font-size: 1.4rem; font-weight: bold; color: #00ff88; }
-  .suite-detail { font-size: 0.7rem; color: #555; margin-top: 0.2rem; }
+  body { font-family: var(--font-body); background: var(--bg-gradient); color: var(--text); padding: 2.5rem; line-height: 1.6; min-height: 100vh; }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* Header */
+  .header { margin-bottom: 2.5rem; animation: fadeUp 0.6s ease both; }
+  .header-badge { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent-dim); border: 1px solid rgba(0,255,136,0.15); color: var(--accent); padding: 0.25rem 0.75rem; border-radius: 100px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 0.75rem; font-family: var(--font-mono); }
+  .header-badge::before { content: ''; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -1px; line-height: 1.2; }
+  h1 span { color: var(--accent); }
+  .header-sub { color: var(--text-dim); font-size: 0.9rem; margin-top: 0.4rem; }
+
+  /* KPI Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; text-align: center; position: relative; overflow: hidden; animation: fadeScale 0.5s ease both; }
+  .kpi:nth-child(1) { animation-delay: 0.1s; }
+  .kpi:nth-child(2) { animation-delay: 0.15s; }
+  .kpi:nth-child(3) { animation-delay: 0.2s; }
+  .kpi:nth-child(4) { animation-delay: 0.25s; }
+  .kpi::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); opacity: 0.6; }
+  .kpi-value { font-size: 2.8rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent); line-height: 1; }
+  .kpi-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 0.5rem; font-weight: 500; }
+
+  /* Section headers */
+  h2 { font-size: 1.15rem; font-weight: 600; color: var(--text); margin: 2.5rem 0 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  h2::before { content: ''; width: 3px; height: 1.2em; background: var(--accent); border-radius: 2px; }
+
+  /* Test Suites */
+  .suites { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .suite { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; animation: fadeUp 0.5s ease both; }
+  .suite:nth-child(1) { animation-delay: 0.3s; }
+  .suite:nth-child(2) { animation-delay: 0.35s; }
+  .suite:nth-child(3) { animation-delay: 0.4s; }
+  .suite-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+  .suite-name { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
+  .suite-score { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+  .suite-bar { background: var(--surface2); border-radius: 6px; height: 6px; overflow: hidden; }
+  .suite-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--cyan)); border-radius: 6px; animation: barFill 1s ease both; animation-delay: 0.6s; }
+  .suite-detail { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem; }
+
+  /* Architecture */
+  .arch { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; margin: 1.5rem 0; animation: fadeUp 0.6s ease both; animation-delay: 0.45s; }
+  .arch-flow { display: flex; align-items: center; justify-content: center; gap: 0.3rem; flex-wrap: wrap; padding: 0.5rem 0; }
+  .arch-node { font-family: var(--font-mono); font-size: 0.78rem; padding: 0.5rem 0.9rem; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border-bright); color: var(--text-dim); white-space: nowrap; }
+  .arch-node.hook { background: var(--accent-dim); border-color: rgba(0,255,136,0.2); color: var(--accent); font-weight: 600; }
+  .arch-arrow { color: var(--text-dim); opacity: 0.4; font-size: 0.9rem; }
+  .arch-caption { text-align: center; font-size: 0.75rem; color: var(--text-dim); margin-top: 1rem; font-style: italic; }
+
+  /* Category Grid */
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin: 1rem 0; }
+  .cat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; animation: fadeUp 0.4s ease both; }
+  .cat-card:nth-child(1) { animation-delay: 0.5s; }
+  .cat-card:nth-child(2) { animation-delay: 0.55s; }
+  .cat-card:nth-child(3) { animation-delay: 0.6s; }
+  .cat-card:nth-child(4) { animation-delay: 0.65s; }
+  .cat-card:nth-child(5) { animation-delay: 0.7s; }
+  .cat-card:nth-child(6) { animation-delay: 0.75s; }
+  .cat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
+  .cat-name { font-weight: 600; font-size: 0.85rem; }
+  .cat-badge { font-family: var(--font-mono); font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: var(--green-dim); color: var(--green); font-weight: 600; border: 1px solid rgba(0,255,136,0.15); }
+  .cat-bar { background: var(--surface2); border-radius: 4px; height: 4px; overflow: hidden; margin-bottom: 0.5rem; }
+  .cat-fill { height: 100%; border-radius: 4px; animation: barFill 0.8s ease both; }
+  .cat-fill.full { background: var(--accent); animation-delay: 0.8s; }
+  .cat-meta { font-size: 0.72rem; color: var(--text-dim); display: flex; justify-content: space-between; }
+
+  /* Attack Table */
+  .table-wrap { overflow-x: auto; margin: 1rem 0; border-radius: 12px; border: 1px solid var(--border); animation: fadeUp 0.5s ease both; animation-delay: 0.8s; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  thead { position: sticky; top: 0; z-index: 1; }
+  th { text-align: left; padding: 0.8rem 1rem; background: var(--surface2); color: var(--text-dim); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; border-bottom: 1px solid var(--border-bright); }
+  td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--surface2); }
+  td code { font-family: var(--font-mono); font-size: 0.75rem; background: var(--surface2); padding: 0.1rem 0.35rem; border-radius: 3px; }
+  .status { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 4px; }
+  .status.pass { background: var(--green-dim); color: var(--green); }
+  .status.pass::before { content: ''; width: 5px; height: 5px; background: var(--green); border-radius: 50%; }
+
+  /* Comparison */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; animation: fadeUp 0.5s ease both; animation-delay: 0.85s; }
+  .compare-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+  .compare-col.bad { border-top: 3px solid var(--red); }
+  .compare-col.good { border-top: 3px solid var(--accent); }
+  .compare-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.75rem; }
+  .compare-col.bad .compare-title { color: var(--red); }
+  .compare-col.good .compare-title { color: var(--accent); }
+  .compare-list { list-style: none; }
+  .compare-list li { font-size: 0.82rem; color: var(--text-dim); padding: 0.35rem 0; padding-left: 1.2rem; position: relative; }
+  .compare-list li::before { position: absolute; left: 0; font-weight: bold; }
+  .compare-col.bad .compare-list li::before { content: '\00d7'; color: var(--red); }
+  .compare-col.good .compare-list li::before { content: '\2713'; color: var(--accent); }
+
+  /* Footer */
+  .footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center; animation: fadeUp 0.5s ease both; animation-delay: 0.9s; }
+  .footer-tagline { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.3rem; }
+  .footer-tagline strong { color: var(--accent); font-weight: 600; }
+  .footer-meta { font-size: 0.7rem; color: var(--text-dim); opacity: 0.5; }
+
+  /* Animations */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+  @keyframes barFill { from { width: 0; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; } }
+
+  @media (max-width: 768px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .suites { grid-template-columns: 1fr; }
+    .compare { grid-template-columns: 1fr; }
+    .cat-grid { grid-template-columns: 1fr; }
+    body { padding: 1rem; }
+  }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>OpenClaw Security Hooks</h1>
-  <div class="subtitle">Deterministic Enforcement Test Report</div>
-  <div class="date">Generated: 2026-02-20 | Framework: OpenClaw | Agent: ClawdBot</div>
-  
-  <div class="hero">
-    <div class="stat">
-      <div class="stat-value">251</div>
-      <div class="stat-label">Total Tests</div>
+  <header class="header">
+    <div class="header-badge">All Systems Passing</div>
+    <h1>OpenClaw <span>Security Hooks</span></h1>
+    <div class="header-sub">Deterministic enforcement test report - February 20, 2026</div>
+  </header>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-value">251</div>
+      <div class="kpi-label">Total Tests</div>
     </div>
-    <div class="stat">
-      <div class="stat-value">251</div>
-      <div class="stat-label">Passed</div>
+    <div class="kpi">
+      <div class="kpi-value">251</div>
+      <div class="kpi-label">Passed</div>
     </div>
-    <div class="stat">
-      <div class="stat-value">0</div>
-      <div class="stat-label">Failed</div>
+    <div class="kpi">
+      <div class="kpi-value" style="color: var(--text-dim);">0</div>
+      <div class="kpi-label">Failed</div>
     </div>
-    <div class="stat">
-      <div class="stat-value">100%</div>
-      <div class="stat-label">Block Rate</div>
+    <div class="kpi">
+      <div class="kpi-value">100%</div>
+      <div class="kpi-label">Block Rate</div>
     </div>
   </div>
-  
-  <div class="test-suites">
+
+  <h2>Test Suites</h2>
+  <div class="suites">
     <div class="suite">
-      <div class="suite-name">Attack Pattern Suite</div>
-      <div class="suite-result">90/90</div>
-      <div class="suite-detail">All categories passing</div>
+      <div class="suite-header">
+        <span class="suite-name">Attack Pattern Suite</span>
+        <span class="suite-score">90/90</span>
+      </div>
+      <div class="suite-bar"><div class="suite-fill" style="width:100%"></div></div>
+      <div class="suite-detail">System overrides, roleplay, exfiltration, encoding, context manipulation, unicode, format compliance, false positive checks</div>
     </div>
     <div class="suite">
-      <div class="suite-name">Red Team Pipeline</div>
-      <div class="suite-result">118/118</div>
-      <div class="suite-detail">Variant generation + encoding</div>
+      <div class="suite-header">
+        <span class="suite-name">Red Team Pipeline</span>
+        <span class="suite-score">118/118</span>
+      </div>
+      <div class="suite-bar"><div class="suite-fill" style="width:100%"></div></div>
+      <div class="suite-detail">Automated variant generation: case mutations, spacing variations, encoding chains, cross-category fuzzing</div>
     </div>
     <div class="suite">
-      <div class="suite-name">HookManager Unit</div>
-      <div class="suite-result">43/43</div>
-      <div class="suite-detail">Patterns, execution, security</div>
+      <div class="suite-header">
+        <span class="suite-name">HookManager Unit Tests</span>
+        <span class="suite-score">43/43</span>
+      </div>
+      <div class="suite-bar"><div class="suite-fill" style="width:100%"></div></div>
+      <div class="suite-detail">Pattern matching, hook execution, reject/warn/transform modes, timeout, concurrency, ReDoS resistance, config validation</div>
     </div>
   </div>
 
   <h2>Architecture</h2>
-  <div class="architecture">
+  <div class="arch">
     <div class="arch-flow">
-      <div class="arch-box">Agent (LLM)</div>
+      <div class="arch-node">Agent (LLM)</div>
       <div class="arch-arrow">&#8594;</div>
-      <div class="arch-box">Tool Call</div>
+      <div class="arch-node">Tool Call</div>
       <div class="arch-arrow">&#8594;</div>
-      <div class="arch-box hook">BEFORE HOOKS</div>
+      <div class="arch-node hook">BEFORE HOOKS</div>
       <div class="arch-arrow">&#8594;</div>
-      <div class="arch-box">Gateway</div>
+      <div class="arch-node">Gateway</div>
       <div class="arch-arrow">&#8594;</div>
-      <div class="arch-box">External API</div>
+      <div class="arch-node">External API</div>
       <div class="arch-arrow">&#8594;</div>
-      <div class="arch-box hook">AFTER HOOKS</div>
+      <div class="arch-node hook">AFTER HOOKS</div>
       <div class="arch-arrow">&#8594;</div>
-      <div class="arch-box">Response</div>
+      <div class="arch-node">Response</div>
     </div>
-    <div style="text-align:center; color:#555; font-size:0.75rem; margin-top:0.5rem;">
-      Before hooks validate/transform parameters. After hooks sanitize responses. Both run in code, not in system prompts.
-    </div>
+    <div class="arch-caption">Before hooks validate parameters. After hooks sanitize responses. Both run in code, not system prompts.</div>
   </div>
 
   <h2>Coverage by Category</h2>
-  <div class="category-grid">
-    <div class="category-card">
-      <div class="category-name">System Override</div>
-      <div class="category-bar"><div class="category-fill" style="width:100%"></div></div>
-      <div class="category-stats"><span>45 variants tested</span><span style="color:#00ff88">100% blocked</span></div>
+  <div class="cat-grid">
+    <div class="cat-card">
+      <div class="cat-header">
+        <span class="cat-name">System Override</span>
+        <span class="cat-badge">BLOCKED</span>
+      </div>
+      <div class="cat-bar"><div class="cat-fill full" style="width:100%"></div></div>
+      <div class="cat-meta"><span>45 variants tested</span><span>100% blocked</span></div>
     </div>
-    <div class="category-card">
-      <div class="category-name">Data Exfiltration</div>
-      <div class="category-bar"><div class="category-fill" style="width:100%"></div></div>
-      <div class="category-stats"><span>30 variants tested</span><span style="color:#00ff88">100% blocked</span></div>
+    <div class="cat-card">
+      <div class="cat-header">
+        <span class="cat-name">Data Exfiltration</span>
+        <span class="cat-badge">BLOCKED</span>
+      </div>
+      <div class="cat-bar"><div class="cat-fill full" style="width:100%"></div></div>
+      <div class="cat-meta"><span>30 variants tested</span><span>100% blocked</span></div>
     </div>
-    <div class="category-card">
-      <div class="category-name">Roleplay Injection</div>
-      <div class="category-bar"><div class="category-fill" style="width:100%"></div></div>
-      <div class="category-stats"><span>25 variants tested</span><span style="color:#00ff88">100% blocked</span></div>
+    <div class="cat-card">
+      <div class="cat-header">
+        <span class="cat-name">Roleplay Injection</span>
+        <span class="cat-badge">BLOCKED</span>
+      </div>
+      <div class="cat-bar"><div class="cat-fill full" style="width:100%"></div></div>
+      <div class="cat-meta"><span>25 variants tested</span><span>100% blocked</span></div>
     </div>
-    <div class="category-card">
-      <div class="category-name">Encoding Attacks</div>
-      <div class="category-bar"><div class="category-fill" style="width:100%"></div></div>
-      <div class="category-stats"><span>8 variants (B64/URL/hex)</span><span style="color:#00ff88">100% blocked</span></div>
+    <div class="cat-card">
+      <div class="cat-header">
+        <span class="cat-name">Encoding Attacks</span>
+        <span class="cat-badge">BLOCKED</span>
+      </div>
+      <div class="cat-bar"><div class="cat-fill full" style="width:100%"></div></div>
+      <div class="cat-meta"><span>8 variants (B64/URL/hex)</span><span>100% blocked</span></div>
     </div>
-    <div class="category-card">
-      <div class="category-name">Context Manipulation</div>
-      <div class="category-bar"><div class="category-fill" style="width:100%"></div></div>
-      <div class="category-stats"><span>5 variants tested</span><span style="color:#00ff88">100% blocked</span></div>
+    <div class="cat-card">
+      <div class="cat-header">
+        <span class="cat-name">Context Manipulation</span>
+        <span class="cat-badge">BLOCKED</span>
+      </div>
+      <div class="cat-bar"><div class="cat-fill full" style="width:100%"></div></div>
+      <div class="cat-meta"><span>5 variants tested</span><span>100% blocked</span></div>
     </div>
-    <div class="category-card">
-      <div class="category-name">Legitimate Content</div>
-      <div class="category-bar"><div class="category-fill" style="width:100%"></div></div>
-      <div class="category-stats"><span>5 false positive checks</span><span style="color:#00ff88">0 false positives</span></div>
+    <div class="cat-card">
+      <div class="cat-header">
+        <span class="cat-name">Legitimate Content</span>
+        <span class="cat-badge" style="background:var(--cyan-dim);color:var(--cyan);border-color:rgba(34,211,238,0.15)">PASSED</span>
+      </div>
+      <div class="cat-bar"><div class="cat-fill full" style="width:100%;background:var(--cyan)"></div></div>
+      <div class="cat-meta"><span>5 false positive checks</span><span>0 false positives</span></div>
     </div>
   </div>
 
   <h2>Attack Pattern Details</h2>
-  <table class="attack-table">
-    <thead>
-      <tr><th>Category</th><th>Attack Type</th><th>Detection Method</th><th>Status</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Prompt Injection</td><td>System overrides ("ignore previous instructions")</td><td>Pattern matching + case variants</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Prompt Injection</td><td>Roleplay ("you are now a hacker")</td><td>Keyword detection + sentence removal</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Prompt Injection</td><td>Instruction injection (fake separators)</td><td>Conversation separator detection</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Encoding</td><td>Single/double/triple Base64</td><td>Recursive decode + keyword check</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Encoding</td><td>URL encoding (%XX chains)</td><td>URL decode + re-check</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Encoding</td><td>Hex encoding (\x41 patterns)</td><td>Hex decode + keyword check</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Exfiltration</td><td>System prompt extraction</td><td>30+ pattern matching</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Exfiltration</td><td>Config/API key access</td><td>File path + env var detection</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Context</td><td>Fake tokens (&lt;|im_end|&gt;, &lt;|endoftext|&gt;)</td><td>Token pattern stripping</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Context</td><td>JSON role injection</td><td>JSON structure detection</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Context</td><td>HTML comment injection</td><td>Comment pattern + keyword check</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Unicode</td><td>Cyrillic homoglyph evasion</td><td>Normalization + post-check</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Format</td><td>Non-Block Kit payloads</td><td>Structure validation</td><td><span class="badge pass">BLOCKED</span></td></tr>
-      <tr><td>Format</td><td>Em dashes, bare markdown</td><td>Unicode + pattern detection</td><td><span class="badge pass">BLOCKED</span></td></tr>
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Attack Type</th><th>Detection Method</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Prompt Injection</td><td>System overrides <code>ignore previous instructions</code></td><td>Pattern matching + case variants</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Prompt Injection</td><td>Roleplay <code>you are now a hacker</code></td><td>Keyword detection + sentence removal</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Prompt Injection</td><td>Instruction injection (fake separators)</td><td>Conversation separator detection</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Encoding</td><td>Single/double/triple Base64</td><td>Recursive decode + keyword check</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Encoding</td><td>URL encoding <code>%XX</code> chains</td><td>URL decode + re-check pipeline</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Encoding</td><td>Hex encoding <code>\x41</code> patterns</td><td>Hex decode + keyword check</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Exfiltration</td><td>System prompt extraction (30+ patterns)</td><td>Keyword + path + env var detection</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Exfiltration</td><td>Config/API key access</td><td>File path + env var pattern matching</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Context</td><td>Fake tokens <code>&lt;|im_end|&gt;</code></td><td>Token pattern stripping</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Context</td><td>JSON role injection</td><td>JSON structure detection + removal</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Context</td><td>HTML comment injection</td><td>Comment pattern + keyword check</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Unicode</td><td>Cyrillic homoglyph evasion</td><td>Normalization + post-normalization re-check</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Format</td><td>Non-Block Kit payloads</td><td>Structure validation (rich_text required)</td><td><span class="status pass">BLOCKED</span></td></tr>
+        <tr><td>Format</td><td>Em dashes, bare markdown</td><td>Unicode + pattern detection</td><td><span class="status pass">BLOCKED</span></td></tr>
+      </tbody>
+    </table>
+  </div>
 
-  <h2>Key Insight</h2>
-  <div class="architecture">
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
-      <div>
-        <div style="color:#ff4444; font-weight:bold; margin-bottom:0.5rem;">System Prompts (Probabilistic)</div>
-        <ul style="list-style:none; font-size:0.85rem; color:#888;">
-          <li>Can be ignored by the model</li>
-          <li>Inconsistent across contexts</li>
-          <li>Natural language ambiguity</li>
-          <li>No audit trail</li>
-          <li>Bypassable via prompt injection</li>
-        </ul>
-      </div>
-      <div>
-        <div style="color:#00ff88; font-weight:bold; margin-bottom:0.5rem;">Hook System (Deterministic)</div>
-        <ul style="list-style:none; font-size:0.85rem; color:#888;">
-          <li>Cannot be bypassed by model output</li>
-          <li>Consistent enforcement always</li>
-          <li>Code-based precision</li>
-          <li>Full audit logging</li>
-          <li>Immune to prompt injection</li>
-        </ul>
-      </div>
+  <h2>Why This Matters</h2>
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-title">System Prompts (Probabilistic)</div>
+      <ul class="compare-list">
+        <li>Can be ignored by the model</li>
+        <li>Inconsistent across context lengths</li>
+        <li>Natural language ambiguity</li>
+        <li>No audit trail of violations</li>
+        <li>Bypassable via prompt injection</li>
+      </ul>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-title">Hook System (Deterministic)</div>
+      <ul class="compare-list">
+        <li>Cannot be bypassed by model output</li>
+        <li>Consistent enforcement always</li>
+        <li>Code-based precision</li>
+        <li>Full audit logging with timestamps</li>
+        <li>Immune to prompt injection</li>
+      </ul>
     </div>
   </div>
 
-  <div class="footer">
-    Built in one day. 1,917 lines of code. 251 tests. Zero bypasses.<br>
-    OpenClaw Security Hooks - github.com/PHMD/openclaw-security-hooks
-  </div>
+  <footer class="footer">
+    <div class="footer-tagline">Built in one day. <strong>1,917</strong> lines of code. <strong>251</strong> tests. <strong>Zero</strong> bypasses.</div>
+    <div class="footer-meta">OpenClaw Security Hooks - PHM Labs - February 2026</div>
+  </footer>
 </div>
 </body>
 </html>
